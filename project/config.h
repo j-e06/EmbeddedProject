@@ -35,7 +35,7 @@
 #define TIME_BETWEEN_PILLS  3000 // for testing purposes the pills are dispensed now every 3s, to change it to 30s add 0 to both
 #define FIRST_PILL_DELAY    3000 // these both + 0 -> 30s // now 3s
 
-#define MAX_PILLS           8
+#define MAX_PILLS           7
 #define ERROR_BLINK_COUNT   5
 #define LONG_PRESS_DURATION 2000   // 2 seconds
 #define PIEZO_DEBOUNCE_MS   1000   // 1 second debounce for piezo sensor
