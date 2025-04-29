@@ -64,6 +64,7 @@ void calibrate() {
         if (steps_count > 10000) {
             printf("Calibration failed: too many steps without detecting edge.\n");
             calibrated = false;
+            printf("Temp ignore me :)\n");
             return;
         }
     }
