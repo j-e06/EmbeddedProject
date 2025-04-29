@@ -90,7 +90,7 @@ void calibrate() {
 // Stepper helpers
 void move_stepper(int steps) {
     for (int i = 0; i < steps; i++) {
-        current_step = (current_step + 1) & 7;
+        current_step = (current_step + 1) % (MAX_PILLS + 1);
         run_motor(current_step);
         sleep_ms(1);
     }
