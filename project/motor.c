@@ -15,7 +15,6 @@
 #include "eeprom.h"
 #include "config.h"
 
-
 // Half‐step sequence for stepper
 const uint8_t half_step[8][4] = {
     {1,0,0,0}, {1,1,0,0}, {0,1,0,0}, {0,1,1,0},
@@ -73,8 +72,7 @@ void calibrate() {
 
     // Store the step count and calculate steps per compartment
     steps_per_rotation = steps_count;
-    steps_per_compartment = (steps_per_rotation / COMPARTMENTS);
-    move_stepper(COMPARTMENT_OFFSET);
+    steps_per_compartment = (steps_per_rotation / MAX_PILLS);
 
     // Make sure steps_per_compartment is not zero
     if (steps_per_compartment <= 0) {
@@ -92,7 +90,7 @@ void calibrate() {
 // Stepper helpers
 void move_stepper(int steps) {
     for (int i = 0; i < steps; i++) {
-        current_step = (current_step + 1) % COMPARTMENTS;
+        current_step = (current_step + 1) & 7;
         run_motor(current_step);
         sleep_ms(1);
     }
