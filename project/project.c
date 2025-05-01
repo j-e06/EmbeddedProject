@@ -8,10 +8,12 @@
 #include "pico/stdlib.h"
 #include "hardware/i2c.h"
 #include "pico/time.h"
-#include "lorawan.h"
+// #include "lorawan.h"
+#include "test_lora/lora_test.h"
 #include "eeprom.h"
 #include "config.h"
 #include "motor.h"
+
 i2c_inst_t *eeprom_i2c = i2c0;
 
 // Globals
