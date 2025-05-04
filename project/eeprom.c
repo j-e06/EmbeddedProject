@@ -5,7 +5,27 @@
 #include "hardware/i2c.h"
 #include "pico/stdlib.h"
 #include "config.h"
+#include "eeprom.h"
 
+void reset_calibration_values(i2c_inst_t *i2c) {
+    calibrated = false;
+    steps_per_rotation = 0;
+    steps_per_compartment = 0;
+    pills_dispensed = 0;
+
+    if (eeprom_initialized) {
+        save_state_to_eeprom(i2c);
+    }
+}
+
+// reset pill count but keep calibration
+void reset_pill_count(i2c_inst_t *i2c) {
+    pills_dispensed = 0;
+
+    if (eeprom_initialized) {
+        save_state_to_eeprom(i2c);
+    }
+}
 
 void load_eeprom_state(i2c_inst_t *eeprom_i2c, repeating_timer_callback_t pill_timer_callback) {
     // Try to load state from EEPROM if available
@@ -15,7 +35,7 @@ void load_eeprom_state(i2c_inst_t *eeprom_i2c, repeating_timer_callback_t pill_t
 
             if (pills_dispensed > 0 && pills_dispensed < MAX_PILLS) {
                 // Recover from interrupted dispensing cycle
-                printf("Detected interrupted dispensing cycle. Recovering...\n");
+                printf("Program interrupted, recovering...\n");
                 lorawan_send_text(lorawan_connected, "Recovering from power failure");
                 printf("Resuming from pill %d of %d\n", pills_dispensed + 1, MAX_PILLS);
 
@@ -51,7 +71,7 @@ bool init_eeprom(i2c_inst_t *i2c) {
 
     i2c_init(i2c, 100000);  // 100 kHz, lower for reliability
 
-    printf("I2C initialized at 100kHz\n");
+    printf("I2C initialized\n");
 
     // check if EEPROM exists
     uint8_t addr_buf[1] = {0};  // start with address 0
@@ -59,13 +79,13 @@ bool init_eeprom(i2c_inst_t *i2c) {
 
     absolute_time_t timeout_time = make_timeout_time_ms(500);  // 500ms timeout
 
-    printf("Testing EEPROM presence at address 0x%02X...\n", EEPROM_ADDR);
+    printf("Testing EEPROM at address 0x%02X...\n", EEPROM_ADDR);
 
     // write address 0
     int result = i2c_write_timeout_us(i2c, EEPROM_ADDR, addr_buf, 1, false, 100000);
 
     if (result == PICO_ERROR_GENERIC || result == PICO_ERROR_TIMEOUT) {
-        printf("EEPROM not detected - write timeout\n");
+        printf("EEPROM not detected\n");
         return false;
     }
 
@@ -111,7 +131,7 @@ bool init_eeprom(i2c_inst_t *i2c) {
         printf("Magic number written successfully\n");
     }
 
-    printf("EEPROM initialized successfully\n");
+    printf("EEPROM initialized\n");
     return true;
 }
 
@@ -121,10 +141,10 @@ bool save_state_to_eeprom(i2c_inst_t *i2c) {
     bool success = true;
     uint8_t cal_flag = calibrated ? 1 : 0;
 
-    // Save calibration flag
+    // save calibration flag
     success &= eeprom_write_bytes(i2c, ADDR_CALIBRATED, &cal_flag, sizeof(cal_flag));
 
-    // Save numerical values
+    // save numerical values
     printf("Steps per rotation %d\nSteps per compartment: %d\n", steps_per_rotation, steps_per_compartment);
     success &= eeprom_write_bytes(i2c, ADDR_CURRENT_STEP, (uint8_t*)&current_step, sizeof(current_step));
     success &= eeprom_write_bytes(i2c, ADDR_PILLS_DISPENSED, (uint8_t*)&pills_dispensed, sizeof(pills_dispensed));
@@ -134,14 +154,14 @@ bool save_state_to_eeprom(i2c_inst_t *i2c) {
     if (success) {
         printf("State saved to EEPROM\n");
     } else {
-        printf("Failed to save state to EEPROM\n");
+        printf("Failed to save EEPROM state\n");
     }
 
     return success;
 }
 
 bool load_state_from_eeprom(i2c_inst_t *i2c) {
-    // Use the externally defined globals
+    // define globals
     extern bool calibrated;
     extern int current_step;
     extern int pills_dispensed;
@@ -152,12 +172,12 @@ bool load_state_from_eeprom(i2c_inst_t *i2c) {
     bool read_magic = eeprom_read_bytes(i2c, ADDR_MAGIC, (uint8_t*)&magic, sizeof(magic));
 
     if (!read_magic) {
-        printf("Failed to read magic number from EEPROM\n");
+        printf("Failed to read magic number\n");
         return false;
     }
 
     if (magic != EEPROM_MAGIC_NUMBER) {
-        printf("EEPROM does not contain valid state data (Magic: 0x%08X)\n", magic);
+        printf("EEPROM magic number doesn't match\n");
         return false;
     }
 
@@ -176,6 +196,21 @@ bool load_state_from_eeprom(i2c_inst_t *i2c) {
     }
 
     calibrated = (cal_flag != 0);
+
+    // prevent impossible step values
+    if (steps_per_rotation > 10000 || steps_per_rotation < 0 ||
+        steps_per_compartment > 2000 || steps_per_compartment < 0) {
+        printf("Invalid step values in EEPROM, resetting to defaults\n");
+        reset_calibration_values(i2c);
+        return false;
+    }
+
+    // if not calibrated, ensure step values are reset to zero
+    if (!calibrated) {
+        steps_per_rotation = 0;
+        steps_per_compartment = 0;
+        pills_dispensed = 0;
+    }
 
     printf("State loaded from EEPROM\n");
     printf("  Calibrated: %s\n", calibrated ? "Yes" : "No");
