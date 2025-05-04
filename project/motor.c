@@ -15,6 +15,7 @@
 #include "eeprom.h"
 #include "config.h"
 
+
 // Half‐step sequence for stepper
 const uint8_t half_step[8][4] = {
     {1,0,0,0}, {1,1,0,0}, {0,1,0,0}, {0,1,1,0},
@@ -64,7 +65,6 @@ void calibrate() {
         if (steps_count > 10000) {
             printf("Calibration failed: too many steps without detecting edge.\n");
             calibrated = false;
-            printf("Temp ignore me :)\n");
             return;
         }
     }
@@ -73,7 +73,8 @@ void calibrate() {
 
     // Store the step count and calculate steps per compartment
     steps_per_rotation = steps_count;
-    steps_per_compartment = steps_per_rotation / 8;
+    steps_per_compartment = (steps_per_rotation / COMPARTMENTS);
+    move_stepper(COMPARTMENT_OFFSET);
 
     // Make sure steps_per_compartment is not zero
     if (steps_per_compartment <= 0) {
@@ -91,7 +92,7 @@ void calibrate() {
 // Stepper helpers
 void move_stepper(int steps) {
     for (int i = 0; i < steps; i++) {
-        current_step = (current_step + 1) % (MAX_PILLS + 1);
+        current_step = (current_step + 1) % COMPARTMENTS;
         run_motor(current_step);
         sleep_ms(1);
     }

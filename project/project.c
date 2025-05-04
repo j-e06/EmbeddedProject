@@ -8,8 +8,7 @@
 #include "pico/stdlib.h"
 #include "hardware/i2c.h"
 #include "pico/time.h"
-// #include "lorawan.h"
-#include "test_lora/lora_test.h"
+#include "lorawan.h"
 #include "eeprom.h"
 #include "config.h"
 #include "motor.h"
@@ -36,8 +35,6 @@ queue_t events;
 struct repeating_timer timer;
 
 
-
-
 // Prototypes
 void init_all();
 void init_button(uint gpio_pin);
@@ -51,7 +48,6 @@ bool check_button_press(uint pin);
 bool check_long_press(uint pin, uint duration);
 
 
-
 // Modify your main function to add EEPROM support
 int main() {
     stdio_init_all();
@@ -61,8 +57,14 @@ int main() {
     load_eeprom_state(eeprom_i2c, pill_timer_callback);
 
     while (true) {
-
         uint32_t now = to_ms_since_boot(get_absolute_time());
+
+        // check for button presses regardless of state
+
+        bool center_pressed = check_button_press(CENTER_BUTTON);
+        bool left_pressed = check_button_press(LEFT_BUTTON);
+        bool right_pressed = check_button_press(RIGHT_BUTTON);
+
         switch (state) {
             case S_WAIT_CAL:
                 // blink LED
@@ -70,9 +72,11 @@ int main() {
                     gpio_put(CENTER_LED, !gpio_get(CENTER_LED));
                     last_led_toggle = now;
                 }
-                if (check_button_press(CENTER_BUTTON)) {
+                if (center_pressed) {
                     printf("Starting calibration...\n");
+
                     calibrate();
+
                     if (calibrated) {
                         state = S_IDLE;
                         gpio_put(CENTER_LED, 1);
@@ -87,21 +91,22 @@ int main() {
                     } else {
                         state = S_ERROR;
                         led_blink_flag = true;
+                        printf("Calibration failed!\n");
                     }
                 }
                 break;
 
             case S_IDLE:
-                if (check_button_press(LEFT_BUTTON)) {
+                if (left_pressed) {
                     printf("Dispense sequence started.\n");
                     lorawan_send_text(lorawan_connected, "Starting pill dispenser");
 
                     pills_dispensed = 0;
                     first_delay_start = now;
                     state = S_FIRST_DELAY;
-                    gpio_put(LEFT_LED, 1);  // Turn on LED to show we're in delay mode
+                    gpio_put(LEFT_LED, 1);  // led to show we're in delay mode
 
-                    // Save initial state when starting dispensing
+                    // save initial state when starting dispensing
                     if (eeprom_initialized) {
                         save_state_to_eeprom(eeprom_i2c);
                     }
@@ -109,12 +114,12 @@ int main() {
                 break;
 
             case S_FIRST_DELAY:
-                // Wait for the first pill delay
+                // wait for the first pill delay
                 if (now - first_delay_start >= FIRST_PILL_DELAY) {
-                    gpio_put(LEFT_LED, 0);  // Turn off LED
+                    gpio_put(LEFT_LED, 0);
                     dispense_pill_flag = true;
                     state = S_DISPENSE;
-                    // Start the repeating timer for subsequent pills
+                    // start repeating times
                     add_repeating_timer_ms(TIME_BETWEEN_PILLS, pill_timer_callback, NULL, &timer);
                 }
                 break;
@@ -124,7 +129,7 @@ int main() {
                     dispense_pill_flag = false;
                     pill_dispenser();
 
-                    // Save state after dispensing a pill
+                    // save state after dispensing
                     if (eeprom_initialized) {
                         save_state_to_eeprom(eeprom_i2c);
                     }
@@ -137,6 +142,7 @@ int main() {
                     error_blink(CENTER_LED);
                     led_blink_flag = false;
                 }
+
                 if (check_long_press(CENTER_BUTTON, LONG_PRESS_DURATION)) {
                     printf("Resetting to calibration.\n");
                     lorawan_send_text(lorawan_connected, "Resetting to calibration.");
@@ -177,7 +183,9 @@ bool pill_timer_callback(struct repeating_timer *t) {
 // Dispense one pill
 void pill_dispenser() {
     printf("Dispensing pill %d...\n", pills_dispensed+1);
+
     // lorawan_send_text(lorawan_connected, "Dispensing pill...");
+
     flush_events();
     last_piezo_time = 0; // Reset piezo debounce timer
 
