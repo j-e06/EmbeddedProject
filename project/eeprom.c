@@ -28,13 +28,13 @@ void reset_pill_count(i2c_inst_t *i2c) {
 }
 
 void load_eeprom_state(i2c_inst_t *eeprom_i2c, repeating_timer_callback_t pill_timer_callback) {
-    // Try to load state from EEPROM if available
+    // load state from EEPROM if available
     if (eeprom_initialized && load_state_from_eeprom(eeprom_i2c)) {
         if (calibrated && steps_per_rotation > 0 && steps_per_compartment > 0) {
             printf("Restored calibration from EEPROM\n");
 
             if (pills_dispensed > 0 && pills_dispensed < MAX_PILLS) {
-                // Recover from interrupted dispensing cycle
+                // recover from interrupted dispensing cycle
                 printf("Program interrupted, recovering...\n");
                 lorawan_send_text(lorawan_connected, "Recovering from power failure");
                 printf("Resuming from pill %d of %d\n", pills_dispensed + 1, MAX_PILLS);
@@ -42,19 +42,19 @@ void load_eeprom_state(i2c_inst_t *eeprom_i2c, repeating_timer_callback_t pill_t
                 // Set up timer to continue dispensing
                 add_repeating_timer_ms(TIME_BETWEEN_PILLS, pill_timer_callback, NULL, &timer);
 
-                // Update state to start dispensing
+                // update state to start dispensing next pill
                 state = S_DISPENSE;
-                dispense_pill_flag = true; // Trigger immediate dispensing of next pill
+                dispense_pill_flag = true; // immediately start dispensing next pill
 
-                gpio_put(LEFT_LED, 1);  // Show we're in dispensing mode
+                gpio_put(LEFT_LED, 1);
             } else {
                 // EEPROM had calibration, but no interrupted dispense
                 state = S_IDLE;
-                gpio_put(CENTER_LED, 1);  // Show calibrated status
+                gpio_put(CENTER_LED, 1);  // show calibrated status
                 printf("Ready to dispense. Press LEFT button.\n");
             }
         } else {
-            // Calibration data in EEPROM is invalid
+            // invalid calibration data in EEPROM
             printf("No valid calibration in EEPROM\n");
         }
     }
