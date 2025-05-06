@@ -58,6 +58,8 @@
 #define ADDR_STEPS_ROTATION   13      // steps per rotation (4 bytes)
 #define ADDR_STEPS_COMPARTMENT 17     // steps per compartment (4 bytes)
 
+
+
 // Magic number to validate EEPROM content
 #define EEPROM_MAGIC_NUMBER   0xABC123  // no difference
 

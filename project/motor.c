@@ -15,6 +15,10 @@
 #include "eeprom.h"
 #include "config.h"
 
+//mid-rotate kalibrointi säätöö
+extern i2c_inst_t *eeprom_i2c;
+static bool dispensing_in_progress = false;
+static int step_target = 0;
 
 // Half‐step sequence for stepper
 const uint8_t half_step[8][4] = {
@@ -97,6 +101,7 @@ void move_stepper(int steps) {
         sleep_ms(1);
     }
 }
+
 void run_motor(int step) {
     gpio_put(IN1, half_step[step][0]);
     gpio_put(IN2, half_step[step][1]);

@@ -46,7 +46,7 @@ void load_eeprom_state(i2c_inst_t *eeprom_i2c, repeating_timer_callback_t pill_t
                 state = S_DISPENSE;
                 dispense_pill_flag = true; // immediately start dispensing next pill
 
-                gpio_put(LEFT_LED, 1);
+                gpio_put(CENTER_LED, 1);
             } else {
                 // EEPROM had calibration, but no interrupted dispense
                 state = S_IDLE;
@@ -256,6 +256,7 @@ bool eeprom_write_bytes(i2c_inst_t *i2c, uint16_t addr, const uint8_t *data, siz
 
     return true;
 }
+
 
 bool eeprom_read_bytes(i2c_inst_t *i2c, uint16_t addr, uint8_t *data, size_t len) {
 

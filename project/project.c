@@ -104,7 +104,7 @@ int main() {
                     pills_dispensed = 0;
                     first_delay_start = now;
                     state = S_FIRST_DELAY;
-                    gpio_put(LEFT_LED, 1);  // led to show we're in delay mode
+                    gpio_put(CENTER_LED, 1);  // led to show we're in delay mode
 
                     // save initial state when starting dispensing
                     if (eeprom_initialized) {
@@ -116,7 +116,7 @@ int main() {
             case S_FIRST_DELAY:
                 // wait for the first pill delay
                 if (now - first_delay_start >= FIRST_PILL_DELAY) {
-                    gpio_put(LEFT_LED, 0);
+                    gpio_put(CENTER_LED, 0);
                     dispense_pill_flag = true;
                     state = S_DISPENSE;
                     // start repeating times
@@ -199,7 +199,17 @@ void pill_dispenser() {
         return;
     }
 
-    sleep_ms(500); // wait for pill to drop
+    // increment the pill counter
+    pills_dispensed++;
+
+    // save state to EEPROM after incrementing counter
+    if (eeprom_initialized) {
+        save_state_to_eeprom(eeprom_i2c);
+    }
+
+
+
+    //sleep_ms(500); // wait for pill to drop
 
     bool pill_detected = false;
     uint32_t detection_start = to_ms_since_boot(get_absolute_time());
@@ -226,12 +236,12 @@ void pill_dispenser() {
     }
 
     // increment the pill counter
-    pills_dispensed++;
+    //  pills_dispensed++;
 
     // save state to EEPROM after incrementing counter
-    if (eeprom_initialized) {
-        save_state_to_eeprom(eeprom_i2c);
-    }
+    //   if (eeprom_initialized) {
+    //      save_state_to_eeprom(eeprom_i2c);
+    //  }
 
     if (pills_dispensed >= MAX_PILLS) {
         printf("All pills dispensed\n");
@@ -242,6 +252,7 @@ void pill_dispenser() {
         calibrated = false;
     }
 }
+
 
 // Error blink
 void error_blink(uint led_pin) {
