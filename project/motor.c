@@ -72,7 +72,7 @@ void recalibrate_motor() {
 
     move_stepper(pills_dispensed * steps_per_compartment);
 
-    pill_dispenser();
+    // pill_dispenser();
 }
 
 // Calibration: measure full revolution

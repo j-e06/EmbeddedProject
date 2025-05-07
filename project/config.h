@@ -27,8 +27,8 @@
 #define OPTO_FORK           28
 #define PIEZO_GPIO          27
 
-#define TIME_BETWEEN_PILLS  3000 // for testing purposes the pills are dispensed now every 3s, to change it to 30s add 0 to both
-#define FIRST_PILL_DELAY    3000 // these both + 0 -> 30s // now 3s
+#define TIME_BETWEEN_PILLS  5000 // for testing purposes the pills are dispensed now every 3s, to change it to 30s add 0 to both
+#define FIRST_PILL_DELAY    5000 // these both + 0 -> 30s // now 3s
 
 #define MAX_PILLS           7
 #define COMPARTMENTS        8

@@ -6,6 +6,8 @@
 #include "pico/stdlib.h"
 #include "config.h"
 #include "eeprom.h"
+
+#include "lorawan.h"
 #include "motor.h"
 void reset_calibration_values(i2c_inst_t *i2c) {
     calibrated = false;
@@ -44,16 +46,17 @@ void load_eeprom_state(i2c_inst_t *eeprom_i2c, repeating_timer_callback_t pill_t
 
                 // Set up timer to continue dispensing
 
-                recalibrate_motor();
-
-                add_repeating_timer_ms(TIME_BETWEEN_PILLS, pill_timer_callback, NULL, &timer);
-
                 // update state to start dispensing next pill
                 state = S_DISPENSE;
                 dispense_pill_flag = true; // immediately start dispensing next pill
 
                 gpio_put(CENTER_LED, 1);
                 dispensing_in_progress = 0;
+                add_repeating_timer_ms(TIME_BETWEEN_PILLS, pill_timer_callback, NULL, &timer);
+
+                recalibrate_motor();
+
+
                 // if (eeprom_initialized) {
                 //     save_state_to_eeprom(eeprom_i2c);
                 // }
