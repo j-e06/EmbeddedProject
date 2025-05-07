@@ -32,8 +32,8 @@
 #define OPTO_FORK           28
 #define PIEZO_GPIO          27
 
-#define TIME_BETWEEN_PILLS  5000 // for testing purposes the pills are dispensed now every 3s, to change it to 30s add 0 to both
-#define FIRST_PILL_DELAY    5000 // these both + 0 -> 30s // now 3s
+#define TIME_BETWEEN_PILLS  3000 // for testing purposes the pills are dispensed now every 3s, to change it to 30s add 0 to both
+#define FIRST_PILL_DELAY    3000 // these both + 0 -> 30s // now 3s
 
 #define MAX_PILLS           7
 #define COMPARTMENTS        8
@@ -57,7 +57,7 @@
 #define ADDR_PILLS_DISPENSED  9       // pills dispensed (4 bytes)
 #define ADDR_STEPS_ROTATION   13      // steps per rotation (4 bytes)
 #define ADDR_STEPS_COMPARTMENT 17     // steps per compartment (4 bytes)
-
+#define ADDR_DISPENSING_IN_PROGRESS 25
 
 
 // Magic number to validate EEPROM content
@@ -76,7 +76,7 @@
 #define STRLEN 1024
 
 #define LORAWAN_MODE "AT+MODE=LWOTAA"
-#define LORAWAN_KEY "AT+KEY=APPKEY,\"aa44F649EDCE50703B29776CE6CFFB46F4\""
+#define LORAWAN_KEY "AT+KEY=APPKEY,\"44F649EDCE50703B29776CE6CFFB46F4\""
 #define LORAWAN_CLASS "AT+CLASS=A"
 #define LORAWAN_PORT "AT+PORT=8"
 #define LORAWAN_JOIN "AT+JOIN"
@@ -96,6 +96,8 @@ extern bool led_blink_flag;
 extern bool lorawan_connected;
 extern bool eeprom_initialized;
 extern int pills_dispensed;
+extern int dispensing_in_progress;
+
 
 // For timestamping
 extern uint32_t last_led_toggle;
@@ -126,6 +128,7 @@ typedef struct {
     event_type_t type;
     uint32_t timestamp;
 } event_t;
+
 
 extern system_state_t state;
 

@@ -1,7 +1,3 @@
-//
-// Created by yep on 29/04/2025.
-//
-
 #ifndef MOTOR_H
 #define MOTOR_H
 //temp

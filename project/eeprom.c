@@ -6,12 +6,13 @@
 #include "pico/stdlib.h"
 #include "config.h"
 #include "eeprom.h"
-
+#include "motor.h"
 void reset_calibration_values(i2c_inst_t *i2c) {
     calibrated = false;
     steps_per_rotation = 0;
     steps_per_compartment = 0;
     pills_dispensed = 0;
+    dispensing_in_progress = 0;
 
     if (eeprom_initialized) {
         save_state_to_eeprom(i2c);
@@ -32,21 +33,29 @@ void load_eeprom_state(i2c_inst_t *eeprom_i2c, repeating_timer_callback_t pill_t
     if (eeprom_initialized && load_state_from_eeprom(eeprom_i2c)) {
         if (calibrated && steps_per_rotation > 0 && steps_per_compartment > 0) {
             printf("Restored calibration from EEPROM\n");
-
-            if (pills_dispensed > 0 && pills_dispensed < MAX_PILLS) {
+            if (pills_dispensed > 0 && pills_dispensed < MAX_PILLS || dispensing_in_progress == 1) {
                 // recover from interrupted dispensing cycle
                 printf("Program interrupted, recovering...\n");
                 lorawan_send_text(lorawan_connected, "Recovering from power failure");
-                printf("Resuming from pill %d of %d\n", pills_dispensed + 1, MAX_PILLS);
+                // printf("Resuming from pill %d of %d\n", pills_dispensed + 1, MAX_PILLS);
+
 
                 // Set up timer to continue dispensing
+
+                recalibrate_motor();
+
                 add_repeating_timer_ms(TIME_BETWEEN_PILLS, pill_timer_callback, NULL, &timer);
 
                 // update state to start dispensing next pill
                 state = S_DISPENSE;
                 dispense_pill_flag = true; // immediately start dispensing next pill
 
-                gpio_put(LEFT_LED, 1);
+                gpio_put(CENTER_LED, 1);
+                dispensing_in_progress = 0;
+                // if (eeprom_initialized) {
+                //     save_state_to_eeprom(eeprom_i2c);
+                // }
+
             } else {
                 // EEPROM had calibration, but no interrupted dispense
                 state = S_IDLE;
@@ -150,6 +159,7 @@ bool save_state_to_eeprom(i2c_inst_t *i2c) {
     success &= eeprom_write_bytes(i2c, ADDR_PILLS_DISPENSED, (uint8_t*)&pills_dispensed, sizeof(pills_dispensed));
     success &= eeprom_write_bytes(i2c, ADDR_STEPS_ROTATION, (uint8_t*)&steps_per_rotation, sizeof(steps_per_rotation));
     success &= eeprom_write_bytes(i2c, ADDR_STEPS_COMPARTMENT, (uint8_t*)&steps_per_compartment, sizeof(steps_per_compartment));
+    success &= eeprom_write_bytes(i2c, ADDR_DISPENSING_IN_PROGRESS, (uint8_t*)&dispensing_in_progress, sizeof(dispensing_in_progress));
 
     if (success) {
         printf("State saved to EEPROM\n");
@@ -167,7 +177,7 @@ bool load_state_from_eeprom(i2c_inst_t *i2c) {
     extern int pills_dispensed;
     extern int steps_per_rotation;
     extern int steps_per_compartment;
-
+    extern int dispensing_in_progress;
     uint32_t magic;
     bool read_magic = eeprom_read_bytes(i2c, ADDR_MAGIC, (uint8_t*)&magic, sizeof(magic));
 
@@ -189,6 +199,7 @@ bool load_state_from_eeprom(i2c_inst_t *i2c) {
     read_success &= eeprom_read_bytes(i2c, ADDR_PILLS_DISPENSED, (uint8_t*)&pills_dispensed, sizeof(pills_dispensed));
     read_success &= eeprom_read_bytes(i2c, ADDR_STEPS_ROTATION, (uint8_t*)&steps_per_rotation, sizeof(steps_per_rotation));
     read_success &= eeprom_read_bytes(i2c, ADDR_STEPS_COMPARTMENT, (uint8_t*)&steps_per_compartment, sizeof(steps_per_compartment));
+    read_success &= eeprom_read_bytes(i2c, ADDR_DISPENSING_IN_PROGRESS, (uint8_t*)&dispensing_in_progress, sizeof(dispensing_in_progress));
 
     if (!read_success) {
         printf("Failed to read state values from EEPROM\n");
@@ -210,6 +221,7 @@ bool load_state_from_eeprom(i2c_inst_t *i2c) {
         steps_per_rotation = 0;
         steps_per_compartment = 0;
         pills_dispensed = 0;
+        dispensing_in_progress = 0;
     }
 
     printf("State loaded from EEPROM\n");
@@ -218,7 +230,7 @@ bool load_state_from_eeprom(i2c_inst_t *i2c) {
     printf("  Pills dispensed: %d\n", pills_dispensed);
     printf("  Steps per rotation: %d\n", steps_per_rotation);
     printf("  Steps per compartment: %d\n", steps_per_compartment);
-
+    printf("  Dispensing in progress: %d\n", dispensing_in_progress);
     return true;
 }
 
@@ -256,6 +268,7 @@ bool eeprom_write_bytes(i2c_inst_t *i2c, uint16_t addr, const uint8_t *data, siz
 
     return true;
 }
+
 
 bool eeprom_read_bytes(i2c_inst_t *i2c, uint16_t addr, uint8_t *data, size_t len) {
 

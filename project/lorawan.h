@@ -1,6 +1,3 @@
-//
-// Created by yep on 30/04/2025.
-//
 
 #ifndef LORA_TEST_H
 #define LORA_TEST_H

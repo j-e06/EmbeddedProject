@@ -1,8 +1,3 @@
-//lorawan.c
-/*
- * LoRaWAN Driver Implementation for Raspberry Pi Pico
- * Optimized for reliability and performance
- */
 
 #include "lorawan.h"
 #include "config.h"

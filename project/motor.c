@@ -14,7 +14,10 @@
 #include "lorawan.h"
 #include "eeprom.h"
 #include "config.h"
+#include "project.h"
 
+//mid-rotate kalibrointi säätöö
+extern i2c_inst_t *eeprom_i2c;
 
 // Half‐step sequence for stepper
 const uint8_t half_step[8][4] = {
@@ -25,6 +28,51 @@ const uint8_t half_step[8][4] = {
 void flush_events() {
     event_t junk;
     while (queue_try_remove(&events, &junk)) {}
+}
+
+void recalibrate_motor() {
+    event_t ev;
+
+    flush_events(); // Clear any existing events
+
+    printf("Looking for first edge (backward)...\n");
+
+    //now we start looking for the first edge so we can start counting the steps
+
+    bool first_edge = false;
+
+    while (!first_edge) {
+        current_step = (current_step - 1);
+
+        if (current_step < 0) current_step = COMPARTMENTS - 1;  // wrap around
+
+        run_motor(current_step);
+
+        sleep_ms(1);
+
+        if (queue_try_remove(&events, &ev)) {
+            if (ev.type == EV_OPTO) {
+                // opto fork detected an edge
+                first_edge = true;
+                printf("Found first edge. Starting measurement...\n");
+            }
+        }
+    }
+
+    for (int i = 0; i < COMPARTMENT_OFFSET; i++) {
+        current_step = (current_step - 1);
+
+        if (current_step < 0) current_step = COMPARTMENTS - 1;
+
+        run_motor(current_step);
+
+        sleep_ms(1);
+    }
+    // go until we reached the previous pill dispensed
+
+    move_stepper(pills_dispensed * steps_per_compartment);
+
+    pill_dispenser();
 }
 
 // Calibration: measure full revolution
@@ -91,12 +139,27 @@ void calibrate() {
 
 // Stepper helpers
 void move_stepper(int steps) {
+    if (calibrated) {
+        dispensing_in_progress = 1;
+        if (eeprom_initialized) {
+            save_state_to_eeprom(eeprom_i2c);
+        }
+    }
+
     for (int i = 0; i < steps; i++) {
         current_step = (current_step + 1) % COMPARTMENTS;
         run_motor(current_step);
         sleep_ms(1);
     }
+
+    if (calibrated) {
+        dispensing_in_progress = 0;
+        if (eeprom_initialized) {
+            save_state_to_eeprom(eeprom_i2c);
+        }
+    }
 }
+
 void run_motor(int step) {
     gpio_put(IN1, half_step[step][0]);
     gpio_put(IN2, half_step[step][1]);

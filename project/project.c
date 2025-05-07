@@ -1,10 +1,6 @@
-//
-// Created by yep on 29/04/2025.
-//
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <hardware/watchdog.h>
 #include <pico/util/queue.h>
 #include "pico/stdlib.h"
 #include "hardware/i2c.h"
@@ -20,6 +16,7 @@ i2c_inst_t *eeprom_i2c = i2c0;
 int steps_per_rotation = 0;
 int steps_per_compartment = 0;
 int current_step = 0;
+int dispensing_in_progress = 0;
 bool calibrated = false;
 bool dispense_pill_flag = false;
 bool led_blink_flag = false;
@@ -49,11 +46,10 @@ bool check_button_press(uint pin);
 bool check_long_press(uint pin, uint duration);
 
 
-
+// Modify your main function to add EEPROM support
 int main() {
     stdio_init_all();
     init_all();
-    // recalibrate_motor();
     printf(INSTRUCTIONS);
 
     load_eeprom_state(eeprom_i2c, pill_timer_callback);
@@ -128,20 +124,22 @@ int main() {
 
             case S_DISPENSE:
                 if (dispense_pill_flag) {
-                    dispense_pill_flag = false;
 
-                    // Check if we've already dispensed MAX_PILLS
                     if (pills_dispensed >= MAX_PILLS) {
-                        printf("All pills dispensed\n");
+                        printf("All pills dispensed.\n");
+
                         cancel_repeating_timer(&timer);
+
                         state = S_WAIT_CAL;
+
                         calibrated = false;
 
-                        // Save final state after finishing all pills
                         if (eeprom_initialized) {
                             save_state_to_eeprom(eeprom_i2c);
                         }
-                    } else {
+                    }
+                    else {
+                        dispense_pill_flag = false;
                         pill_dispenser();
 
                         // save state after dispensing
@@ -223,9 +221,9 @@ void pill_dispenser() {
         save_state_to_eeprom(eeprom_i2c);
     }
 
-    // wait for pill to drop
 
-    sleep_ms(500);
+
+    //sleep_ms(500); // wait for pill to drop
 
     bool pill_detected = false;
     uint32_t detection_start = to_ms_since_boot(get_absolute_time());
@@ -250,6 +248,15 @@ void pill_dispenser() {
         // lorawan_send_text(lorawan_connected, "Pill NOT detected!");
         error_blink(CENTER_LED);
     }
+
+    // increment the pill counter
+    //  pills_dispensed++;
+
+    // save state to EEPROM after incrementing counter
+    //   if (eeprom_initialized) {
+    //      save_state_to_eeprom(eeprom_i2c);
+    //  }
+
     if (pills_dispensed >= MAX_PILLS) {
         printf("All pills dispensed\n");
         // lorawan_send_text(lorawan_connected, "All pills dispensed.");
@@ -259,6 +266,7 @@ void pill_dispenser() {
         calibrated = false;
     }
 }
+
 
 // Error blink
 void error_blink(uint led_pin) {
