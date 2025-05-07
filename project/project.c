@@ -10,7 +10,7 @@
 #include "config.h"
 #include "motor.h"
 
-i2c_inst_t *eeprom_i2c = i2c0;
+i2c_inst_t  *eeprom_i2c = i2c0;
 
 // Globals
 int steps_per_rotation = 0;
@@ -61,7 +61,6 @@ int main() {
 
         bool center_pressed = check_button_press(CENTER_BUTTON);
         bool left_pressed = check_button_press(LEFT_BUTTON);
-        bool right_pressed = check_button_press(RIGHT_BUTTON);
 
         switch (state) {
             case S_WAIT_CAL:
@@ -72,6 +71,7 @@ int main() {
                 }
                 if (center_pressed) {
                     printf("Starting calibration...\n");
+                    lorawan_send_text(lorawan_connected, "Starting calibration...");
 
                     calibrate();
 
@@ -81,6 +81,7 @@ int main() {
                         printf("Calibration done: %d steps/rev, %d steps/compartment\n",
                                steps_per_rotation, steps_per_compartment);
                         printf("IDLE: Press LEFT button to dispense.\n");
+                        lorawan_send_text(lorawan_connected, "Calibration done!");
 
                         // Save the state after successful calibration
                         if (eeprom_initialized) {
@@ -90,6 +91,8 @@ int main() {
                         state = S_ERROR;
                         led_blink_flag = true;
                         printf("Calibration failed!\n");
+                        lorawan_send_text(lorawan_connected, "Calibration failed!");
+
                     }
                 }
                 break;
@@ -127,7 +130,7 @@ int main() {
 
                     if (pills_dispensed >= MAX_PILLS) {
                         printf("All pills dispensed.\n");
-
+                        lorawan_send_text(lorawan_connected, "All pills dispensed.");
                         cancel_repeating_timer(&timer);
 
                         state = S_WAIT_CAL;
@@ -198,7 +201,7 @@ bool pill_timer_callback(struct repeating_timer *t) {
 void pill_dispenser() {
     printf("Dispensing pill %d...\n", pills_dispensed+1);
 
-    // lorawan_send_text(lorawan_connected, "Dispensing pill...");
+    lorawan_send_text(lorawan_connected, "Dispensing pill...\n");
 
     flush_events();
     last_piezo_time = 0; // reset piezo debounce timer
@@ -235,7 +238,7 @@ void pill_dispenser() {
         if (queue_try_remove(&events, &ev)) {
             if (ev.type == EV_PIEZO) {
                 printf("Pill detected\n");
-                // lorawan_send_text(lorawan_connected, "Pill detected");
+                lorawan_send_text(lorawan_connected, "Pill detected");
                 pill_detected = true;
                 break;
             }
@@ -245,22 +248,13 @@ void pill_dispenser() {
 
     if (!pill_detected) {
         printf("Pill NOT detected!\n");
-        // lorawan_send_text(lorawan_connected, "Pill NOT detected!");
+        lorawan_send_text(lorawan_connected, "Pill NOT detected!");
         error_blink(CENTER_LED);
     }
 
-    // increment the pill counter
-    //  pills_dispensed++;
-
-    // save state to EEPROM after incrementing counter
-    //   if (eeprom_initialized) {
-    //      save_state_to_eeprom(eeprom_i2c);
-    //  }
-
     if (pills_dispensed >= MAX_PILLS) {
         printf("All pills dispensed\n");
-        // lorawan_send_text(lorawan_connected, "All pills dispensed.");
-
+        lorawan_send_text(lorawan_connected, "All pills dispensed.");
         cancel_repeating_timer(&timer);
         state = S_WAIT_CAL;
         calibrated = false;
@@ -324,7 +318,7 @@ static void gpio_handler(uint gpio, uint32_t mask) {
         if (gpio == OPTO_FORK) {
             event_t ev = {EV_OPTO, current_time};
             queue_try_add(&events, &ev);
-            printf("Opto edge\n");
+            // printf("Opto edge\n");
         }
         else if (gpio == PIEZO_GPIO) {
             // Apply debounce logic for piezo sensor
@@ -332,7 +326,7 @@ static void gpio_handler(uint gpio, uint32_t mask) {
                 event_t ev = {EV_PIEZO, current_time};
                 queue_try_add(&events, &ev);
                 last_piezo_time = current_time;
-                printf("Piezo hit\n");
+                // printf("Piezo hit\n");
             }
         }
     }

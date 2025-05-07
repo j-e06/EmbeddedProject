@@ -3,15 +3,10 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+
 #include <pico/util/queue.h>
-#include "pico/stdlib.h"
-#include "hardware/i2c.h"
+
 #include "pico/time.h"
-#include "lorawan.h"
-#include "eeprom.h"
 #include "config.h"
 
 #define LEFT_BUTTON         9

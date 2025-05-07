@@ -3,7 +3,6 @@
 #include "config.h"
 
 #include <stdio.h>
-#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/unistd.h>
@@ -47,7 +46,7 @@ bool lorawan_send_command(const char *command, char *where_to_store_response, co
     uart_write_blocking(uart1, (const uint8_t*)command, strlen(command));
     uart_write_blocking(uart1, (const uint8_t*)"\r\n", 2);
 
-    printf("Command: %s\n", command);
+    // printf("Command: %s\n", command);
 
     // creating cmd context
     CmdContext cmd_ctx = { expected_outcome, false };
@@ -81,7 +80,7 @@ bool lorawan_read_response(uint64_t timeout_us, bool (*validator)(const char*, v
 
                 if (c == '\n') {
                     // line done
-                    printf("Response: %s", response_buffer);
+                    // printf("Response: %s", response_buffer);
 
                     // make sure it's valid
                     if (validator && validator(response_buffer, context)) {
@@ -198,7 +197,7 @@ bool msg_validator(const char* response, void* ctx) {
 void lorawan_send_text(bool connected, const char* text) {
     // make sure lorawan is connected
     if (!connected) {
-        printf("LoraWAN is not connected. Skipping message send.\n");
+        printf("LoRaWAN is not connected. Skipping message send.\n");
         return;
     }
 
@@ -224,11 +223,11 @@ void lorawan_send_text(bool connected, const char* text) {
         lorawan_read_response(10 * 1000000, msg_validator, &msg_ctx);
 
         if (!msg_ctx.msg_done) {
-            printf("Warning: Message send did not complete\n");
+            printf("Message send did not complete\n");
         }
     } else {
         // we didn't get a msg + done so we failed for reasons xyz
-        printf("Failure: Message Sending Failed\n");
+        printf("Message Sending Failed\n");
     }
 }
 

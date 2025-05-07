@@ -33,10 +33,12 @@ void load_eeprom_state(i2c_inst_t *eeprom_i2c, repeating_timer_callback_t pill_t
     if (eeprom_initialized && load_state_from_eeprom(eeprom_i2c)) {
         if (calibrated && steps_per_rotation > 0 && steps_per_compartment > 0) {
             printf("Restored calibration from EEPROM\n");
+            lorawan_send_text(lorawan_connected, "Restored calibration from EEPROM");
+
             if (pills_dispensed > 0 && pills_dispensed < MAX_PILLS || dispensing_in_progress == 1) {
                 // recover from interrupted dispensing cycle
                 printf("Program interrupted, recovering...\n");
-                lorawan_send_text(lorawan_connected, "Recovering from power failure");
+                lorawan_send_text(lorawan_connected, "Recovering from interruption");
                 // printf("Resuming from pill %d of %d\n", pills_dispensed + 1, MAX_PILLS);
 
 
@@ -84,9 +86,8 @@ bool init_eeprom(i2c_inst_t *i2c) {
 
     // check if EEPROM exists
     uint8_t addr_buf[1] = {0};  // start with address 0
-    bool eeprom_present = false;
+    // bool eeprom_present = false;
 
-    absolute_time_t timeout_time = make_timeout_time_ms(500);  // 500ms timeout
 
     printf("Testing EEPROM at address 0x%02X...\n", EEPROM_ADDR);
 
@@ -103,15 +104,9 @@ bool init_eeprom(i2c_inst_t *i2c) {
     result = i2c_read_timeout_us(i2c, EEPROM_ADDR, &test_byte, 1, false, 100000);
 
     if (result == 1) {
-        eeprom_present = true;
         printf("EEPROM detected successfully\n");
     } else {
         printf("EEPROM read failed with result: %d\n", result);
-        return false;
-    }
-
-    if (!eeprom_present) {
-        printf("EEPROM not detected at address 0x%02X\n", EEPROM_ADDR);
         return false;
     }
 
@@ -154,7 +149,7 @@ bool save_state_to_eeprom(i2c_inst_t *i2c) {
     success &= eeprom_write_bytes(i2c, ADDR_CALIBRATED, &cal_flag, sizeof(cal_flag));
 
     // save numerical values
-    printf("Steps per rotation %d\nSteps per compartment: %d\n", steps_per_rotation, steps_per_compartment);
+    // printf("Steps per rotation %d\nSteps per compartment: %d\n", steps_per_rotation, steps_per_compartment);
     success &= eeprom_write_bytes(i2c, ADDR_CURRENT_STEP, (uint8_t*)&current_step, sizeof(current_step));
     success &= eeprom_write_bytes(i2c, ADDR_PILLS_DISPENSED, (uint8_t*)&pills_dispensed, sizeof(pills_dispensed));
     success &= eeprom_write_bytes(i2c, ADDR_STEPS_ROTATION, (uint8_t*)&steps_per_rotation, sizeof(steps_per_rotation));
@@ -172,12 +167,6 @@ bool save_state_to_eeprom(i2c_inst_t *i2c) {
 
 bool load_state_from_eeprom(i2c_inst_t *i2c) {
     // define globals
-    extern bool calibrated;
-    extern int current_step;
-    extern int pills_dispensed;
-    extern int steps_per_rotation;
-    extern int steps_per_compartment;
-    extern int dispensing_in_progress;
     uint32_t magic;
     bool read_magic = eeprom_read_bytes(i2c, ADDR_MAGIC, (uint8_t*)&magic, sizeof(magic));
 

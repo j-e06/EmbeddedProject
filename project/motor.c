@@ -35,7 +35,7 @@ void recalibrate_motor() {
 
     flush_events(); // Clear any existing events
 
-    printf("Looking for first edge (backward)...\n");
+    printf("Returning to opto detect...\n");
 
     //now we start looking for the first edge so we can start counting the steps
 
@@ -54,7 +54,7 @@ void recalibrate_motor() {
             if (ev.type == EV_OPTO) {
                 // opto fork detected an edge
                 first_edge = true;
-                printf("Found first edge. Starting measurement...\n");
+                printf("Found opto edge...\n");
             }
         }
     }
@@ -117,7 +117,7 @@ void calibrate() {
         }
     }
 
-    printf("Run 1: %d steps.\n", steps_count);
+    // printf("Run 1: %d steps.\n", steps_count);
 
     // Store the step count and calculate steps per compartment
     steps_per_rotation = steps_count;
@@ -133,7 +133,6 @@ void calibrate() {
 
     calibrated = true;
     printf("Calibrated.\n");
-    // lorawan_send_text(lorawan_connected, "Calibrated.");
 }
 
 

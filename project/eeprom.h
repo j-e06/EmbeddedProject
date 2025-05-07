@@ -6,7 +6,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "hardware/i2c.h"
-#include "config.h"
 
 
 bool init_eeprom(i2c_inst_t *i2c);
