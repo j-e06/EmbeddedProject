@@ -10,8 +10,8 @@
 #include "config.h"
 
 #define LEFT_BUTTON         9
-#define CENTER_BUTTON       8  // Calibration button
-#define RIGHT_BUTTON        7  // Pill dispenser button
+#define CENTER_BUTTON       8  // calibration button
+#define RIGHT_BUTTON        7  // pill dispenser button
 
 #define EEPROM_SDA_PIN 16
 #define EEPROM_SCL_PIN 17
@@ -27,8 +27,8 @@
 #define OPTO_FORK           28
 #define PIEZO_GPIO          27
 
-#define TIME_BETWEEN_PILLS  5000 // for testing purposes the pills are dispensed now every 3s, to change it to 30s add 0 to both
-#define FIRST_PILL_DELAY    5000 // these both + 0 -> 30s // now 3s
+#define TIME_BETWEEN_PILLS  5000 // for testing purposes the pills are dispensed now every Xs, to change it to 30s
+#define FIRST_PILL_DELAY    5000 // make them both 30000
 
 #define MAX_PILLS           7
 #define COMPARTMENTS        8
@@ -37,15 +37,14 @@
 #define LONG_PRESS_DURATION 2000   // 2 seconds
 #define PIEZO_DEBOUNCE_MS   1000   // 1 second debounce for piezo sensor
 
-#define INSTRUCTIONS "Pill dispenser ready. Press CENTER button to calibrate.\n"
 
-// EEPROM Configuration
+// eeprom config
 #define EEPROM_ADDR           0x50    // I2C address
 #define EEPROM_SIZE           32768    // size in bytes?
 #define EEPROM_PAGE_SIZE      64      // how many pages
 #define EEPROM_WRITE_TIMEOUT  5       // wait for write cycle
 
-// State storage addresses
+// state storage addresses
 #define ADDR_MAGIC            0       // magic number to check if EEPROM is initialized (4 bytes)
 #define ADDR_CALIBRATED       4       // calibration flag (1 byte)
 #define ADDR_CURRENT_STEP     5       // current step position (4 bytes)
@@ -55,7 +54,7 @@
 #define ADDR_DISPENSING_IN_PROGRESS 25
 
 
-// Magic number to validate EEPROM content
+// magic number to validate EEPROM content
 #define EEPROM_MAGIC_NUMBER   0xABC123  // no difference
 
 #define LORA_TEST "AT"
@@ -94,12 +93,12 @@ extern int pills_dispensed;
 extern int dispensing_in_progress;
 
 
-// For timestamping
+// timestamping
 extern uint32_t last_led_toggle;
 extern uint32_t last_piezo_time;
 extern uint32_t first_delay_start;
 
-// Queue and timer
+// queue & timer
 extern queue_t events;
 extern struct repeating_timer timer;
 
@@ -107,18 +106,18 @@ extern struct repeating_timer timer;
 typedef enum {
     S_WAIT_CAL,
     S_IDLE,
-    S_FIRST_DELAY,   // New state for initial delay
+    S_FIRST_DELAY,
     S_DISPENSE,
     S_ERROR
 } system_state_t;
 
-// Event types
+// event types
 typedef enum {
     EV_OPTO,
     EV_PIEZO
 } event_type_t;
 
-// Event structure
+// event structure
 typedef struct {
     event_type_t type;
     uint32_t timestamp;

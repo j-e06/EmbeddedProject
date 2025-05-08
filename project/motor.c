@@ -1,7 +1,3 @@
-//
-// Created by yep on 29/04/2025.
-//
-
 #include "motor.h"
 
 #include <stdio.h>
@@ -14,30 +10,30 @@
 #include "lorawan.h"
 #include "eeprom.h"
 #include "config.h"
-#include "project.h"
 
-//mid-rotate kalibrointi säätöö
+
 extern i2c_inst_t *eeprom_i2c;
 
-// Half‐step sequence for stepper
+// half‐step sequence for stepper
 const uint8_t half_step[8][4] = {
     {1,0,0,0}, {1,1,0,0}, {0,1,0,0}, {0,1,1,0},
     {0,0,1,0}, {0,0,1,1}, {0,0,0,1}, {1,0,0,1}
 };
-// Clear queue
+
+// clear queue
 void flush_events() {
     event_t junk;
     while (queue_try_remove(&events, &junk)) {}
 }
 
+// a really bad way of recalibrating the motor in the middle of a turn, but oh well
 void recalibrate_motor() {
     event_t ev;
 
-    flush_events(); // Clear any existing events
+    flush_events(); // clear events in que
 
     printf("Returning to opto detect...\n");
 
-    //now we start looking for the first edge so we can start counting the steps
 
     bool first_edge = false;
 
@@ -68,20 +64,21 @@ void recalibrate_motor() {
 
         sleep_ms(1);
     }
+
     // go until we reached the previous pill dispensed
 
     move_stepper(pills_dispensed * steps_per_compartment);
 
-    // pill_dispenser();
+
 }
 
-// Calibration: measure full revolution
 void calibrate() {
     event_t ev;
-    flush_events(); // Clear any existing events
+    flush_events(); // clear que
 
     printf("Looking for first edge...\n");
-    //now we start looking for the first edge so we can start counting the steps
+
+    // look for first opto detect
     bool first_edge = false;
     while (!first_edge) {
         move_stepper(1);
@@ -94,11 +91,11 @@ void calibrate() {
         }
     }
 
-    // we've found the first edge, now count steps for one full revolution
+    // now count steps for one full revolution
     int steps_count = 0;
     bool edge_detected = false;
 
-    // Move stepper until we hit another edge
+    // move stepper until we hit opto detect again
     while (!edge_detected) {
         move_stepper(1);
         steps_count++;
@@ -109,7 +106,7 @@ void calibrate() {
             }
         }
 
-        // Safety check to prevent infinite loop
+        // avoid infinite loop
         if (steps_count > 10000) {
             printf("Calibration failed: too many steps without detecting edge.\n");
             calibrated = false;
@@ -117,14 +114,16 @@ void calibrate() {
         }
     }
 
+    // debug statement
     // printf("Run 1: %d steps.\n", steps_count);
 
     // Store the step count and calculate steps per compartment
     steps_per_rotation = steps_count;
     steps_per_compartment = (steps_per_rotation / COMPARTMENTS);
+    // fully align the compartment
     move_stepper(COMPARTMENT_OFFSET);
 
-    // Make sure steps_per_compartment is not zero
+    // this *shouldn't* be 0 in any situation but idk
     if (steps_per_compartment <= 0) {
         printf("Calibration failed: invalid compartment calculation.\n");
         calibrated = false;
@@ -136,8 +135,12 @@ void calibrate() {
 }
 
 
-// Stepper helpers
 void move_stepper(int steps) {
+    if (steps == 0) {
+        // no point going further than this if steps are 0
+        return;
+    }
+
     if (calibrated) {
         dispensing_in_progress = 1;
         if (eeprom_initialized) {

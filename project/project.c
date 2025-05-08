@@ -12,17 +12,20 @@
 
 i2c_inst_t  *eeprom_i2c = i2c0;
 
-// Globals
+// globals
 int steps_per_rotation = 0;
 int steps_per_compartment = 0;
 int current_step = 0;
 int dispensing_in_progress = 0;
+int pills_dispensed = 0;
 bool calibrated = false;
+
 bool dispense_pill_flag = false;
 bool led_blink_flag = false;
+
 bool lorawan_connected = false;
 bool eeprom_initialized = false;
-int pills_dispensed = 0;
+
 system_state_t state = S_WAIT_CAL;
 
 uint32_t last_led_toggle = 0;
@@ -33,7 +36,7 @@ queue_t events;
 struct repeating_timer timer;
 
 
-// Prototypes
+// prototypes
 void init_all();
 void init_button(uint gpio_pin);
 void init_motor_pin(uint gpio_pin);
@@ -46,19 +49,18 @@ bool check_button_press(uint pin);
 bool check_long_press(uint pin, uint duration);
 
 
-// Modify your main function to add EEPROM support
 int main() {
     stdio_init_all();
     init_all();
-    printf(INSTRUCTIONS);
+    printf("Pill dispenser ready. Press CENTER button to calibrate.\n");
 
     load_eeprom_state(eeprom_i2c, pill_timer_callback);
 
     while (true) {
+        // curent time
         uint32_t now = to_ms_since_boot(get_absolute_time());
 
-        // check for button presses regardless of state
-
+        // button presses
         bool center_pressed = check_button_press(CENTER_BUTTON);
         bool left_pressed = check_button_press(LEFT_BUTTON);
 
@@ -83,7 +85,7 @@ int main() {
                         printf("IDLE: Press LEFT button to dispense.\n");
                         lorawan_send_text(lorawan_connected, "Calibration done!");
 
-                        // Save the state after successful calibration
+                        // save state after we've calibrated
                         if (eeprom_initialized) {
                             save_state_to_eeprom(eeprom_i2c);
                         }
@@ -167,7 +169,7 @@ int main() {
                     state = S_WAIT_CAL;
                     gpio_put(CENTER_LED, 0);
 
-                    // Reset saved state when resetting calibration
+                    // reset saved state when resetting calibration
                     if (eeprom_initialized) {
                         calibrated = false;
                         save_state_to_eeprom(eeprom_i2c);
@@ -179,7 +181,7 @@ int main() {
     }
 }
 
-// Timer callback
+// timer callback
 bool pill_timer_callback(struct repeating_timer *t) {
     if (pills_dispensed >= MAX_PILLS) {
         cancel_repeating_timer(&timer);
@@ -197,7 +199,7 @@ bool pill_timer_callback(struct repeating_timer *t) {
     return true;
 }
 
-// Dispense one pill
+// dispense one pill
 void pill_dispenser() {
     printf("Dispensing pill %d...\n", pills_dispensed+1);
 
@@ -206,7 +208,7 @@ void pill_dispenser() {
     flush_events();
     last_piezo_time = 0; // reset piezo debounce timer
 
-    // Move one compartment
+    // move one compartment
     if (steps_per_compartment > 0) {
         move_stepper(steps_per_compartment);
     } else {
@@ -219,7 +221,7 @@ void pill_dispenser() {
     // increment the pill counter
     pills_dispensed++;
 
-    // save state to EEPROM after incrementing counter
+    // save state to eeprom AFTER we've moved one compartment
     if (eeprom_initialized) {
         save_state_to_eeprom(eeprom_i2c);
     }
@@ -233,7 +235,9 @@ void pill_dispenser() {
     uint32_t detection_timeout = 1000; // 1 second wait for pill detection
 
     // check for pill detection
+
     event_t ev;
+
     while (to_ms_since_boot(get_absolute_time()) - detection_start < detection_timeout) {
         if (queue_try_remove(&events, &ev)) {
             if (ev.type == EV_PIEZO) {
@@ -262,7 +266,7 @@ void pill_dispenser() {
 }
 
 
-// Error blink
+// error blink
 void error_blink(uint led_pin) {
     for (int i = 0; i < ERROR_BLINK_COUNT; i++) {
         gpio_put(led_pin, 1);
@@ -272,7 +276,7 @@ void error_blink(uint led_pin) {
     }
 }
 
-// Button check
+// button check
 bool check_button_press(uint pin) {
     if (!gpio_get(pin)) {
         sleep_ms(20);
@@ -304,13 +308,13 @@ void init_button(uint pin) {
     gpio_set_dir(pin, GPIO_IN);
     gpio_pull_up(pin);
 }
+
 void init_motor_pin(uint pin) {
     gpio_init(pin);
     gpio_set_dir(pin, GPIO_OUT);
     gpio_put(pin, 0);
 }
 
-// IRQ handler with debounce for piezo sensor
 static void gpio_handler(uint gpio, uint32_t mask) {
     if (mask & GPIO_IRQ_EDGE_FALL) {
         uint32_t current_time = to_ms_since_boot(get_absolute_time());
@@ -332,21 +336,21 @@ static void gpio_handler(uint gpio, uint32_t mask) {
     }
 }
 
-// GPIO init and IRQ setup
+
 void init_all() {
     queue_init(&events, sizeof(event_t), 16);
 
-    // Buttons
+    // buttons
     init_button(LEFT_BUTTON);
     init_button(CENTER_BUTTON);
     init_button(RIGHT_BUTTON);
 
-    // LEDs
+    // leds
     gpio_init(LEFT_LED);   gpio_set_dir(LEFT_LED, GPIO_OUT);
     gpio_init(CENTER_LED); gpio_set_dir(CENTER_LED, GPIO_OUT);
     gpio_init(RIGHT_LED);  gpio_set_dir(RIGHT_LED, GPIO_OUT);
 
-    // Motor
+    // motor pins
     init_motor_pin(IN1);
     init_motor_pin(IN2);
     init_motor_pin(IN3);
@@ -354,21 +358,24 @@ void init_all() {
 
     // Sensors
     gpio_set_irq_callback(gpio_handler);
+
     irq_set_enabled(IO_IRQ_BANK0, true);
+
     init_button(OPTO_FORK);
     gpio_set_irq_enabled(OPTO_FORK, GPIO_IRQ_EDGE_FALL, true);
+
     init_button(PIEZO_GPIO);
     gpio_set_irq_enabled(PIEZO_GPIO, GPIO_IRQ_EDGE_FALL, true);
 
-    // Initialize EEPROM via I2C
+    // eeprom init
     eeprom_initialized = init_eeprom(eeprom_i2c);
 
-    // Init LoraWan
+    // lorawan init
     init_lorawan();
 
     lorawan_connected = lorawan_try_connect();
     lorawan_send_text(lorawan_connected, "Device has booted.");
 
-    // Initialize last_piezo_time
+    // set last piezo time to 0
     last_piezo_time = 0;
 }

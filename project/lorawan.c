@@ -9,7 +9,7 @@
 
 #include "pico/stdlib.h"
 
-// respo buffer
+// response buffer
 static char response_buffer[STRLEN] = {0};
 
 // command validator
