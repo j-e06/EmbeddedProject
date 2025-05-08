@@ -38,6 +38,8 @@ void load_eeprom_state(i2c_inst_t *eeprom_i2c, repeating_timer_callback_t pill_t
             lorawan_send_text(lorawan_connected, "Restored calibration from EEPROM");
 
             if (pills_dispensed > 0 && pills_dispensed < MAX_PILLS || dispensing_in_progress == 1) {
+                // defining an "interrupted dispensing cycle" as either being in the middle of a motor turn
+                // OR having dispensed at least 1 pill but not all of them.
                 // recover from interrupted dispensing cycle
                 printf("Program interrupted, recovering...\n");
                 lorawan_send_text(lorawan_connected, "Recovering from interruption");
@@ -57,10 +59,6 @@ void load_eeprom_state(i2c_inst_t *eeprom_i2c, repeating_timer_callback_t pill_t
                 recalibrate_motor();
 
 
-                // if (eeprom_initialized) {
-                //     save_state_to_eeprom(eeprom_i2c);
-                // }
-
             } else {
                 // EEPROM had calibration, but no interrupted dispense
                 state = S_IDLE;
@@ -75,9 +73,9 @@ void load_eeprom_state(i2c_inst_t *eeprom_i2c, repeating_timer_callback_t pill_t
 }
 
 bool init_eeprom(i2c_inst_t *i2c) {
-    printf("Initializing EEPROM...\n");
+    printf("Attempting to initialize EEPROM...\n");
 
-    // Set up the I2C pins
+    // i2c pins
     gpio_set_function(EEPROM_SDA_PIN, GPIO_FUNC_I2C);
     gpio_set_function(EEPROM_SCL_PIN, GPIO_FUNC_I2C);
     gpio_pull_up(EEPROM_SDA_PIN);
@@ -85,14 +83,14 @@ bool init_eeprom(i2c_inst_t *i2c) {
 
     i2c_init(i2c, 100000);  // 100 kHz, lower for reliability
 
-    printf("I2C initialized\n");
+    // printf("I2C initialized\n");
 
     // check if EEPROM exists
     uint8_t addr_buf[1] = {0};  // start with address 0
     // bool eeprom_present = false;
 
 
-    printf("Testing EEPROM at address 0x%02X...\n", EEPROM_ADDR);
+    // printf("Testing EEPROM at address 0x%02X...\n", EEPROM_ADDR);
 
     // write address 0
     int result = i2c_write_timeout_us(i2c, EEPROM_ADDR, addr_buf, 1, false, 100000);
@@ -122,7 +120,7 @@ bool init_eeprom(i2c_inst_t *i2c) {
         return false;
     }
 
-    printf("Read magic number: 0x%08X, Expected: 0x%08X\n", magic, EEPROM_MAGIC_NUMBER);
+    // printf("Read magic number: 0x%08X, Expected: 0x%08X\n", magic, EEPROM_MAGIC_NUMBER);
 
     if (magic != EEPROM_MAGIC_NUMBER) {
         printf("EEPROM not initialized. Setting up...\n");
@@ -135,7 +133,7 @@ bool init_eeprom(i2c_inst_t *i2c) {
             return false;
         }
 
-        printf("Magic number written successfully\n");
+        // printf("Magic number written successfully\n");
     }
 
     printf("EEPROM initialized\n");
@@ -222,7 +220,7 @@ bool load_state_from_eeprom(i2c_inst_t *i2c) {
     printf("  Pills dispensed: %d\n", pills_dispensed);
     printf("  Steps per rotation: %d\n", steps_per_rotation);
     printf("  Steps per compartment: %d\n", steps_per_compartment);
-    printf("  Dispensing in progress: %d\n", dispensing_in_progress);
+    printf("  Dispensing in progress: %s\n", dispensing_in_progress ? "Yes" : "No");
     return true;
 }
 
